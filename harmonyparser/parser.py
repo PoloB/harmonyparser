@@ -1,12 +1,11 @@
 """
 Parser for Harmony .xstage xml file.
-The SBoardScene class will let you build a hierarchy of objects from the
+The HProject.from_file class will let you build a hierarchy of objects from the
 given xstage file.
 """
 
 import abc
-import os
-from typing import Generator, Self, Optional, Type
+from typing import Self, Optional, Iterator
 from xml.etree import cElementTree
 
 from harmonyparser import error
@@ -39,7 +38,7 @@ class HProject(HNode):
         return cls(cElementTree.parse(sboard_path).getroot())
 
     @property
-    def colums(self, column_filter=None) -> Generator["HColumn", None, None]:
+    def columns(self, column_filter=None) -> Iterator["HColumn"]:
         """Returns a generator of layers in the scene."""
         column_filter = f"[type='{column_filter}']" if column_filter else ""
         path = f"./scenes/scene[@name='Top']/columns/column{column_filter}"
@@ -71,9 +70,13 @@ class HColumn(HNode):
 
 
 class HGraphNode(HNode):
+    """A node a graph."""
     def __init__(self, xml_node: cElementTree.Element, parent: Optional[Self] = None):
         super().__init__(xml_node)
         self.__parent = parent
+
+    def __repr__(self):
+        return f"{self.type}('{self.get_path()}')"
 
     @property
     def name(self) -> str:
@@ -85,6 +88,15 @@ class HGraphNode(HNode):
         """Return the parent node of the graph."""
         return self.__parent
 
+    @property
+    def type(self) -> str:
+        """Returns the type of the node."""
+        return "ROOT" if self.__parent else self.xml_node.attrib["type"]
+
+    def is_root(self) -> bool:
+        """Return True if the node is the root of the graph."""
+        return self.__parent is None
+
     def get_path(self) -> str:
         """Return the path of the node.
         Each node is separated by a "/" character."""
@@ -92,7 +104,7 @@ class HGraphNode(HNode):
             return self.name
         return f"{self.parent.get_path()}/{self.name}"
 
-    def children(self, recursive=True) -> Generator[Self, None, None]:
+    def children(self, recursive=True) -> Iterator[Self]:
         """Returns a generator of children nodes."""
         for xml_child in self.xml_node.findall("./nodeslist/*"):
             child_node = HGraphNode(xml_child, self)
@@ -116,3 +128,17 @@ class HGraphNode(HNode):
         for child in child_path.split("/"):
             current_node = current_node.get_child(child)
         return current_node
+
+    def input_nodes(self) -> Iterator[Self]:
+        """Iterates over the input nodes of the current node."""
+        xml_nodes = self.parent.xml_node.findall(f"./linkedlist//*[@in='{self.name}']")
+        names = (xml_node.attrib["out"] for xml_node in xml_nodes)
+        for name in names:
+            yield self.parent.get_child(name)
+
+    def output_nodes(self) -> Iterator[Self]:
+        """Iterates over the input nodes of the current node."""
+        xml_nodes = self.parent.xml_node.findall(f"./linkedlist//*[@out='{self.name}']")
+        names = (xml_node.attrib["in"] for xml_node in xml_nodes)
+        for name in names:
+            yield self.parent.get_child(name)
