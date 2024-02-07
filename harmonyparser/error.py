@@ -1,3 +1,5 @@
+class NoElementError(Exception):
+    """Raised when no element found in the scene."""
 
 
 class NoChildNodeError(Exception):

@@ -3,12 +3,13 @@ Parser for Harmony .xstage xml file.
 The HProject.from_file class will let you build a hierarchy of objects from the
 given xstage file.
 """
-
+from __future__ import annotations
+from __future__ import unicode_literals
 import abc
 from typing import Self, Optional, Iterator
 from xml.etree import cElementTree
 
-from harmonyparser import error
+from harmonyparser import error, const
 
 
 class HNode:
@@ -25,33 +26,83 @@ class HNode:
         return self.__xml_node
 
 
-class HProject(HNode):
+class HScene(HNode):
     """Root object of Harmony project."""
 
     @classmethod
-    def from_file(cls, sboard_path: str) -> Self:
-        """Returns a SBoardProject from the given path.
+    def from_file(cls, xstage_path: str) -> Self:
+        """Build the scene object from the given xstage path"""
+        return cls(cElementTree.parse(xstage_path).getroot())
 
-        Returns:
-            SBoardProject
-        """
-        return cls(cElementTree.parse(sboard_path).getroot())
-
-    @property
-    def columns(self, column_filter=None) -> Iterator["HColumn"]:
-        """Returns a generator of layers in the scene."""
-        column_filter = f"[type='{column_filter}']" if column_filter else ""
-        path = f"./scenes/scene[@name='Top']/columns/column{column_filter}"
-        for xml_column in self.xml_node.findall(path):
-            yield HColumn(xml_column)
+    def _get_scene_root(self) -> cElementTree.Element:
+        return self.xml_node.find(const.XML_SCENE_PATH)
 
     def get_graph(self):
-        root = self.xml_node.find("./scenes/scene[@name='Top']/rootgroup")
+        root = self._get_scene_root().find("./rootgroup")
         return HGraphNode(root)
+
+    def iter_columns(self) -> Iterator[HColumn]:
+        """Returns a generator of columns in the scene."""
+        for xml_column in self._get_scene_root().find("/columns/column"):
+            yield HColumn(xml_column, self)
+
+    def iter_elements(self) -> Iterator[HElement]:
+        """Returns a generator of elements in the scene."""
+        for xml_element in self.xml_node.findall("./elements/element"):
+            yield HElement(xml_element)
+
+    def get_element_from_id(self, element_id) -> HElement:
+        """Return an element from its id."""
+        xml_path = f"./elements/element[@id='{element_id}']"
+        xml_element = self.xml_node.find(xml_path)
+        if not xml_element:
+            raise error.NoElementError(f"No element with id '{element_id}' found")
+        return HElement(xml_element)
+
+    def get_element_from_name(self, element_name) -> HElement:
+        """Return an element from its name."""
+        xml_path = f"./elements/element[@elementName='{element_name}']"
+        xml_element = self.xml_node.find(xml_path)
+        if not xml_element:
+            raise error.NoElementError(f"No element with name '{element_name}' found")
+        return HElement(xml_element)
+
+    @property
+    def id(self) -> str:
+        """Return the id of the scene."""
+        return self._get_scene_root().attrib["id"]
+
+    @property
+    def start_frame(self) -> int:
+        """Return the start frame of the project"""
+        return int(self._get_scene_root().attrib["startFrame"])
+
+    @property
+    def end_frame(self) -> int:
+        """Return the end frame of the project"""
+        return int(self._get_scene_root().attrib["stopFrame"])
+
+
+class HElement(HNode):
+    """A Harmony element."""
+
+    @property
+    def id(self) -> str:
+        """Return the id of the element."""
+        return self.xml_node.attrib["id"]
+
+    @property
+    def folder(self) -> str:
+        """Return the folder of the element."""
+        return self.xml_node.attrib["elementFolder"]
 
 
 class HColumn(HNode):
     """A column in the project."""
+
+    def __init__(self, xml_node: cElementTree.Element, scene: HScene):
+        super().__init__(xml_node)
+        self.__scene = scene
 
     @property
     def name(self) -> str:
@@ -68,9 +119,15 @@ class HColumn(HNode):
         """Return the color of the column in hexadecimal format."""
         return self.xml_node.attrib["color"]
 
+    def get_element(self) -> HElement:
+        """Return the associated element."""
+        element_id = self.xml_node.attrib["id"]
+        return self.__scene.get_element_from_id(element_id)
+
 
 class HGraphNode(HNode):
     """A node a graph."""
+
     def __init__(self, xml_node: cElementTree.Element, parent: Optional[Self] = None):
         super().__init__(xml_node)
         self.__parent = parent
@@ -91,7 +148,7 @@ class HGraphNode(HNode):
     @property
     def type(self) -> str:
         """Returns the type of the node."""
-        return "ROOT" if self.__parent else self.xml_node.attrib["type"]
+        return "ROOT" if not self.__parent else self.xml_node.attrib["type"]
 
     def is_root(self) -> bool:
         """Return True if the node is the root of the graph."""

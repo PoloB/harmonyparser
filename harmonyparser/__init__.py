@@ -1,6 +1,6 @@
-from .parser import HProject
+from .parser import HScene
 
 
-def parse(filename: str) -> HProject:
+def parse(filename: str) -> HScene:
     """Parse the given filename and return the corresponding HProject object"""
-    return HProject.from_file(filename)
+    return HScene.from_file(filename)
