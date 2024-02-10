@@ -3,6 +3,7 @@ Parser for Harmony .xstage xml file.
 The HProject.from_file class will let you build a hierarchy of objects from the
 given xstage file.
 """
+
 from __future__ import annotations
 from __future__ import unicode_literals
 import abc
@@ -33,7 +34,7 @@ class HScene(HNode):
     def from_file(cls, xstage_path: str) -> Self:
         """Build the scene object from the given xstage path"""
         return cls(cElementTree.parse(xstage_path).getroot())
-    
+
     @property
     def id(self) -> str:
         """Return the id of the scene."""
@@ -74,7 +75,9 @@ class HScene(HNode):
         xml_path = f"./columns/column[@name='{column_name}']"
         xml_column = self._get_scene_root().find(xml_path)
         if xml_column is None:
-            raise error.ColumnNotFoundError(f"No column with name '{column_name}' found")
+            raise error.ColumnNotFoundError(
+                f"No column with name '{column_name}' found"
+            )
         return HColumn(xml_column, self)
 
     def iter_elements(self) -> Iterator[HElement]:
@@ -95,7 +98,9 @@ class HScene(HNode):
         xml_path = f"./elements/element[@elementName='{element_name}']"
         xml_element = self.xml_node.find(xml_path)
         if xml_element is None:
-            raise error.ElementNotFoundError(f"No element with name '{element_name}' found")
+            raise error.ElementNotFoundError(
+                f"No element with name '{element_name}' found"
+            )
         return HElement(xml_element)
 
 
@@ -116,7 +121,7 @@ class HElement(HNode):
     def folder(self) -> str:
         """Return the folder of the element."""
         return self.xml_node.attrib["elementFolder"]
-    
+
     @property
     def root_folder(self) -> str:
         """Return the root folder of the element."""
@@ -216,7 +221,7 @@ class HGraphNode(HNode):
     def iter_input_nodes(self) -> Iterator[Self]:
         """Iterates over the input nodes of the current node."""
         if not self.__parent:
-            return 
+            return
         xml_nodes = self.parent.xml_node.findall(f"./linkedlist//*[@in='{self.name}']")
         names = (xml_node.attrib["out"] for xml_node in xml_nodes)
         for name in names:
@@ -225,7 +230,7 @@ class HGraphNode(HNode):
     def iter_output_nodes(self) -> Iterator[Self]:
         """Iterates over the input nodes of the current node."""
         if not self.__parent:
-            return 
+            return
         xml_nodes = self.parent.xml_node.findall(f"./linkedlist//*[@out='{self.name}']")
         names = (xml_node.attrib["in"] for xml_node in xml_nodes)
         for name in names:

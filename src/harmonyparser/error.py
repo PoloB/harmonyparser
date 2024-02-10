@@ -1,3 +1,6 @@
+"""Definition of exceptions used by harmonyparser."""
+
+
 class ElementNotFoundError(Exception):
     """Raised when no element found in the scene."""
 
