@@ -33,40 +33,7 @@ class HScene(HNode):
     def from_file(cls, xstage_path: str) -> Self:
         """Build the scene object from the given xstage path"""
         return cls(cElementTree.parse(xstage_path).getroot())
-
-    def _get_scene_root(self) -> cElementTree.Element:
-        return self.xml_node.find("./scenes/scene[@name='Top']")
-
-    def get_graph(self):
-        root = self._get_scene_root().find("./rootgroup")
-        return HGraphNode(root)
-
-    def iter_columns(self) -> Iterator[HColumn]:
-        """Returns a generator of columns in the scene."""
-        for xml_column in self._get_scene_root().find("/columns/column"):
-            yield HColumn(xml_column, self)
-
-    def iter_elements(self) -> Iterator[HElement]:
-        """Returns a generator of elements in the scene."""
-        for xml_element in self.xml_node.findall("./elements/element"):
-            yield HElement(xml_element)
-
-    def get_element_from_id(self, element_id) -> HElement:
-        """Return an element from its id."""
-        xml_path = f"./elements/element[@id='{element_id}']"
-        xml_element = self.xml_node.find(xml_path)
-        if not xml_element:
-            raise error.NoElementError(f"No element with id '{element_id}' found")
-        return HElement(xml_element)
-
-    def get_element_from_name(self, element_name) -> HElement:
-        """Return an element from its name."""
-        xml_path = f"./elements/element[@elementName='{element_name}']"
-        xml_element = self.xml_node.find(xml_path)
-        if not xml_element:
-            raise error.NoElementError(f"No element with name '{element_name}' found")
-        return HElement(xml_element)
-
+    
     @property
     def id(self) -> str:
         """Return the id of the scene."""
@@ -82,19 +49,78 @@ class HScene(HNode):
         """Return the end frame of the project"""
         return int(self._get_scene_root().attrib["stopFrame"])
 
+    def _get_scene_root(self) -> cElementTree.Element:
+        return self.xml_node.find("./scenes/scene[@name='Top']")
+
+    def get_graph(self):
+        root = self._get_scene_root().find("./rootgroup")
+        return HGraphNode(root)
+
+    def iter_columns(self) -> Iterator[HColumn]:
+        """Returns a generator of columns in the scene."""
+        for xml_column in self._get_scene_root().findall("./columns/column"):
+            yield HColumn(xml_column, self)
+
+    def get_column_from_id(self, column_id: int) -> HColumn:
+        """Return a column from its id."""
+        xml_path = f"./columns/column[@id='{column_id}']"
+        xml_column = self._get_scene_root().find(xml_path)
+        if xml_column is None:
+            raise error.ColumnNotFoundError(f"No column with id '{column_id}' found")
+        return HColumn(xml_column, self)
+
+    def get_column_from_name(self, column_name: str) -> HColumn:
+        """Return a column from its name."""
+        xml_path = f"./columns/column[@name='{column_name}']"
+        xml_column = self._get_scene_root().find(xml_path)
+        if xml_column is None:
+            raise error.ColumnNotFoundError(f"No column with name '{column_name}' found")
+        return HColumn(xml_column, self)
+
+    def iter_elements(self) -> Iterator[HElement]:
+        """Returns a generator of elements in the scene."""
+        for xml_element in self.xml_node.findall("./elements/element"):
+            yield HElement(xml_element)
+
+    def get_element_from_id(self, element_id) -> HElement:
+        """Return an element from its id."""
+        xml_path = f"./elements/element[@id='{element_id}']"
+        xml_element = self.xml_node.find(xml_path)
+        if xml_element is None:
+            raise error.ElementNotFoundError(f"No element with id '{element_id}' found")
+        return HElement(xml_element)
+
+    def get_element_from_name(self, element_name) -> HElement:
+        """Return an element from its name."""
+        xml_path = f"./elements/element[@elementName='{element_name}']"
+        xml_element = self.xml_node.find(xml_path)
+        if xml_element is None:
+            raise error.ElementNotFoundError(f"No element with name '{element_name}' found")
+        return HElement(xml_element)
+
 
 class HElement(HNode):
     """A Harmony element."""
 
     @property
-    def id(self) -> str:
+    def id(self) -> int:
         """Return the id of the element."""
-        return self.xml_node.attrib["id"]
+        return int(self.xml_node.attrib["id"])
+
+    @property
+    def name(self) -> str:
+        """Return the name of the element."""
+        return self.xml_node.attrib["elementName"]
 
     @property
     def folder(self) -> str:
         """Return the folder of the element."""
         return self.xml_node.attrib["elementFolder"]
+    
+    @property
+    def root_folder(self) -> str:
+        """Return the root folder of the element."""
+        return self.xml_node.attrib["rootFolder"]
 
 
 class HColumn(HNode):
@@ -105,6 +131,11 @@ class HColumn(HNode):
         self.__scene = scene
 
     @property
+    def id(self) -> int:
+        """Return the id of the column."""
+        return int(self.xml_node.attrib["id"])
+
+    @property
     def name(self) -> str:
         """Returns the name of the column."""
         return self.xml_node.attrib["name"]
@@ -113,11 +144,6 @@ class HColumn(HNode):
     def type(self) -> int:
         """Returns the type of the column."""
         return int(self.xml_node.attrib["type"])
-
-    @property
-    def color(self) -> str:
-        """Return the color of the column in hexadecimal format."""
-        return self.xml_node.attrib["color"]
 
     def get_element(self) -> HElement:
         """Return the associated element."""
@@ -157,25 +183,26 @@ class HGraphNode(HNode):
     def get_path(self) -> str:
         """Return the path of the node.
         Each node is separated by a "/" character."""
-        if not self.__parent:  # root node case
-            return self.name
-        return f"{self.parent.get_path()}/{self.name}"
+        prefix = ""
+        if self.__parent:
+            prefix = self.__parent.get_path()
+        return f"{prefix}/{self.name}"
 
-    def children(self, recursive=True) -> Iterator[Self]:
+    def iter_children(self, recursive=True) -> Iterator[Self]:
         """Returns a generator of children nodes."""
         for xml_child in self.xml_node.findall("./nodeslist/*"):
             child_node = HGraphNode(xml_child, self)
             yield child_node
             if recursive:
-                yield from child_node.children(recursive=recursive)
+                yield from child_node.iter_children(recursive=recursive)
 
     def get_child(self, child_name: str) -> Self:
         """Returns the child from its name."""
         current_node = self.xml_node
         current_node = current_node.find(f".//*[@name='{child_name}']")
         if not current_node:
-            raise error.NoChildNodeError(
-                f"Node '{self.get_path()}' has no child named '{child_name}'"
+            raise error.ChildNotFoundError(
+                f"Node '{self}' has no child named '{child_name}'"
             )
         return self.__class__(current_node, self)
 
@@ -186,15 +213,19 @@ class HGraphNode(HNode):
             current_node = current_node.get_child(child)
         return current_node
 
-    def input_nodes(self) -> Iterator[Self]:
+    def iter_input_nodes(self) -> Iterator[Self]:
         """Iterates over the input nodes of the current node."""
+        if not self.__parent:
+            return 
         xml_nodes = self.parent.xml_node.findall(f"./linkedlist//*[@in='{self.name}']")
         names = (xml_node.attrib["out"] for xml_node in xml_nodes)
         for name in names:
             yield self.parent.get_child(name)
 
-    def output_nodes(self) -> Iterator[Self]:
+    def iter_output_nodes(self) -> Iterator[Self]:
         """Iterates over the input nodes of the current node."""
+        if not self.__parent:
+            return 
         xml_nodes = self.parent.xml_node.findall(f"./linkedlist//*[@out='{self.name}']")
         names = (xml_node.attrib["in"] for xml_node in xml_nodes)
         for name in names:
