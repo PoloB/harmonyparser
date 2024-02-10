@@ -4,11 +4,11 @@ import os
 
 import pytest
 
-import harmonyparser
+from src import harmonyparser
 
 import logging
 
-from harmonyparser import HScene
+from src.harmonyparser import HScene
 
 logger = logging.getLogger("harmonyparser_test_collection")
 

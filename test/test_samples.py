@@ -1,7 +1,7 @@
 from types import GeneratorType
 from xml.etree import cElementTree
 
-from harmonyparser.parser import HColumn, HElement
+from src.harmonyparser.parser import HColumn, HElement
 
 
 def test_sample_scene(sample_scene):
