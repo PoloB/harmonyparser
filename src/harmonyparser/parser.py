@@ -7,7 +7,7 @@ given xstage file.
 from __future__ import annotations
 from __future__ import unicode_literals
 import abc
-from typing import Self, Optional, Iterator
+from typing import Optional, Iterator
 from xml.etree import cElementTree
 
 from src.harmonyparser import error
@@ -31,7 +31,7 @@ class HScene(HNode):
     """Root object of Harmony project."""
 
     @classmethod
-    def from_file(cls, xstage_path: str) -> Self:
+    def from_file(cls, xstage_path: str) -> HScene:
         """Build the scene object from the given xstage path"""
         return cls(cElementTree.parse(xstage_path).getroot())
 
@@ -159,7 +159,7 @@ class HColumn(HNode):
 class HGraphNode(HNode):
     """A node a graph."""
 
-    def __init__(self, xml_node: cElementTree.Element, parent: Optional[Self] = None):
+    def __init__(self, xml_node: cElementTree.Element, parent: Optional[HGraphNode] = None):
         super().__init__(xml_node)
         self.__parent = parent
 
@@ -172,7 +172,7 @@ class HGraphNode(HNode):
         return self.xml_node.attrib["name"]
 
     @property
-    def parent(self) -> Self:
+    def parent(self) -> HGraphNode:
         """Return the parent node of the graph."""
         return self.__parent
 
@@ -193,7 +193,7 @@ class HGraphNode(HNode):
             prefix = self.__parent.get_path()
         return f"{prefix}/{self.name}"
 
-    def iter_children(self, recursive=True) -> Iterator[Self]:
+    def iter_children(self, recursive=True) -> Iterator[HGraphNode]:
         """Returns a generator of children nodes."""
         for xml_child in self.xml_node.findall("./nodeslist/*"):
             child_node = HGraphNode(xml_child, self)
@@ -201,7 +201,7 @@ class HGraphNode(HNode):
             if recursive:
                 yield from child_node.iter_children(recursive=recursive)
 
-    def get_child(self, child_name: str) -> Self:
+    def get_child(self, child_name: str) -> HGraphNode:
         """Returns the child from its name."""
         current_node = self.xml_node
         current_node = current_node.find(f".//*[@name='{child_name}']")
@@ -211,14 +211,14 @@ class HGraphNode(HNode):
             )
         return self.__class__(current_node, self)
 
-    def get_child_at_path(self, child_path: str) -> Self:
+    def get_child_at_path(self, child_path: str) -> HGraphNode:
         """Return the child from its path relative to this node."""
         current_node = self
         for child in child_path.split("/"):
             current_node = current_node.get_child(child)
         return current_node
 
-    def iter_input_nodes(self) -> Iterator[Self]:
+    def iter_input_nodes(self) -> Iterator[HGraphNode]:
         """Iterates over the input nodes of the current node."""
         if not self.__parent:
             return
@@ -227,7 +227,7 @@ class HGraphNode(HNode):
         for name in names:
             yield self.parent.get_child(name)
 
-    def iter_output_nodes(self) -> Iterator[Self]:
+    def iter_output_nodes(self) -> Iterator[HGraphNode]:
         """Iterates over the input nodes of the current node."""
         if not self.__parent:
             return
