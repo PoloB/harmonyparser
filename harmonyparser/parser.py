@@ -9,7 +9,7 @@ import abc
 from typing import Self, Optional, Iterator
 from xml.etree import cElementTree
 
-from harmonyparser import error, const
+from harmonyparser import error
 
 
 class HNode:
@@ -35,7 +35,7 @@ class HScene(HNode):
         return cls(cElementTree.parse(xstage_path).getroot())
 
     def _get_scene_root(self) -> cElementTree.Element:
-        return self.xml_node.find(const.XML_SCENE_PATH)
+        return self.xml_node.find("./scenes/scene[@name='Top']")
 
     def get_graph(self):
         root = self._get_scene_root().find("./rootgroup")
