@@ -159,7 +159,9 @@ class HColumn(HNode):
 class HGraphNode(HNode):
     """A node a graph."""
 
-    def __init__(self, xml_node: cElementTree.Element, parent: Optional[HGraphNode] = None):
+    def __init__(
+        self, xml_node: cElementTree.Element, parent: Optional[HGraphNode] = None
+    ):
         super().__init__(xml_node)
         self.__parent = parent
 
