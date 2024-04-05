@@ -2,9 +2,9 @@ from types import GeneratorType
 
 import pytest
 
-from src import harmonyparser
-from src.harmonyparser import HScene, error
-from src.harmonyparser.parser import HColumn, HElement, HGraphNode
+import harmonyparser
+from harmonyparser import HScene, error
+from harmonyparser.parser import HColumn, HElement, HGraphNode
 
 
 @pytest.fixture()

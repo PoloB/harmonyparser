@@ -10,7 +10,7 @@ import abc
 from typing import Optional, Iterator
 from xml.etree import cElementTree
 
-from src.harmonyparser import error
+from harmonyparser import error
 
 
 class HNode:
